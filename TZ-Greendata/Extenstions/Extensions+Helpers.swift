@@ -1,0 +1,58 @@
+//
+//  Extensions+Helpers.swift
+//  TZ-Greendata
+//
+//  Created by MAC on 07.10.2020.
+//  Copyright © 2020 Gera Volobuev. All rights reserved.
+//
+
+import Foundation
+import UIKit
+
+extension UIImage {
+
+    func alpha(_ value:CGFloat) -> UIImage {
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        draw(at: CGPoint.zero, blendMode: .normal, alpha: value)
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return newImage!
+    }
+}
+
+let imageCache = NSCache<NSString, UIImage>()
+
+extension UIImageView {
+
+        func imageFromServerURL(_ URLString: String, placeHolder: UIImage?) {
+        self.image = nil
+        //If imageurl's imagename has space then this line going to work for this
+        let imageServerUrl = URLString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let cachedImage = imageCache.object(forKey: NSString(string: imageServerUrl)) {
+            self.image = cachedImage
+            return
+        }
+
+        if let url = URL(string: imageServerUrl) {
+            URLSession.shared.dataTask(with: url, completionHandler: { (data, response, error) in
+
+                //print("RESPONSE FROM API: \(response)")
+                if error != nil {
+                    print("ERROR LOADING IMAGES FROM URL: \(error)")
+                    DispatchQueue.main.async {
+                        self.image = placeHolder
+                    }
+                    return
+                }
+                DispatchQueue.main.async {
+                    if let data = data {
+                        if let downloadedImage = UIImage(data: data) {
+                            imageCache.setObject(downloadedImage, forKey: NSString(string: imageServerUrl))
+                            self.image = downloadedImage
+                        }
+                    }
+                }
+            }).resume()
+        }
+    }
+}
